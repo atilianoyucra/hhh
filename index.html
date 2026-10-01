@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcade Launcher - 5 juegos</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{background:#121214;color:#fff;font-family:system-ui,Segoe UI,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{background:#0b0b0d;padding:12px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #26262b}
+.logo{background:#fff;color:#000;font-weight:800;padding:4px 8px;border-radius:4px;font-size:.8rem;letter-spacing:1px}
+header h1{font-size:1rem;font-weight:600}
+main{display:flex;flex:1;gap:16px;padding:16px;max-width:1000px;width:100%;margin:0 auto}
+aside{width:210px;display:flex;flex-direction:column;gap:8px}
+.card{background:#202024;border:2px solid transparent;border-radius:10px;padding:12px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;color:#fff;font-size:.95rem}
+.card:hover{background:#2a2a30}
+.card.active{border-color:#0078f2;background:#25252c}
+.card span{font-size:1.5rem}
+.card small{display:block;opacity:.6;font-size:.72rem}
+section{flex:1;text-align:center;min-width:0}
+canvas{width:100%;max-width:480px;aspect-ratio:1;background:#0b0b0d;border-radius:10px;border:2px solid #26262b;display:block;margin:0 auto}
+#info{margin:10px 0 4px;font-size:.9rem;opacity:.8}
+#score{font-weight:700;font-size:1.1rem}
+@media(max-width:700px){main{flex-direction:column}aside{width:100%;flex-direction:row;flex-wrap:wrap}.card{flex:1 1 45%}}
+</style>
+</head>
+<body>
+<header><div class="logo">ARCADE</div><h1>Biblioteca de juegos</h1></header>
+<main>
+  <aside id="menu"></aside>
+  <section>
+    <canvas id="cv" width="480" height="480"></canvas>
+    <div id="info"></div>
+    <div id="score"></div>
+  </section>
+</main>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),W=480,H=480;
+const R=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h)};
+const T=(t,x,y,s=20,c='#fff',a='center')=>{ctx.fillStyle=c;ctx.font=`bold ${s}px sans-serif`;ctx.textAlign=a;ctx.fillText(t,x,y)};
+const overlay=m=>{R(0,0,W,H,'rgba(0,0,0,.6)');T(m,W/2,H/2,30);T('Clic o Enter para reiniciar',W/2,H/2+34,15)};
+
+/* ---------- 1. SNAKE ---------- */
+function Snake(){
+  let s,d,nd,f,sc,over,t;
+  const food=()=>{do f={x:Math.random()*24|0,y:Math.random()*24|0};while(s.some(p=>p.x==f.x&&p.y==f.y))};
+  const g={
+    info:'Snake · Flechas o WASD',
+    reset(){s=[{x:12,y:12},{x:11,y:12},{x:10,y:12}];d=nd={x:1,y:0};sc=0;over=false;t=0;food()},
+    update(dt){
+      if(over)return;t+=dt;if(t<.1)return;t=0;d=nd;
+      const h={x:s[0].x+d.x,y:s[0].y+d.y};
+      if(h.x<0||h.y<0||h.x>23||h.y>23||s.some(p=>p.x==h.x&&p.y==h.y)){over=true;return}
+      s.unshift(h);h.x==f.x&&h.y==f.y?(sc++,food()):s.pop();
+    },
+    draw(){
+      R(0,0,W,H,'#0b0b0d');R(f.x*20+2,f.y*20+2,16,16,'#ff4d6d');
+      s.forEach((p,i)=>R(p.x*20+1,p.y*20+1,18,18,i?'#34d399':'#a7f3d0'));
+      if(over)overlay('Fin del juego');
+    },
+    key(k){
+      if((k=='arrowup'||k=='w')&&d.y!=1)nd={x:0,y:-1};
+      if((k=='arrowdown'||k=='s')&&d.y!=-1)nd={x:0,y:1};
+      if((k=='arrowleft'||k=='a')&&d.x!=1)nd={x:-1,y:0};
+      if((k=='arrowright'||k=='d')&&d.x!=-1)nd={x:1,y:0};
+    },
+    over:()=>over,score:()=>'Puntos: '+sc
+  };
+  return g;
+}
+
+/* ---------- 2. PONG ---------- */
+function Pong(){
+  let py,cy,b,ps,cs,over;
+  const serve=dir=>{b={x:W/2,y:H/2,vx:5*dir,vy:(Math.random()*4-2)}};
+  return{
+    info:'Pong · Mouse o ↑ ↓ (primero a 5)',
+    reset(){py=cy=H/2;ps=cs=0;over=false;serve(1)},
+    update(dt){
+      if(over)return;const f=dt*60;
+      if(keys.arrowup||keys.w)py-=6*f;if(keys.arrowdown||keys.s)py+=6*f;
+      py=Math.max(40,Math.min(H-40,py));
+      cy+=Math.max(-4,Math.min(4,b.y-cy))*f*.85;cy=Math.max(40,Math.min(H-40,cy));
+      b.x+=b.vx*f;b.y+=b.vy*f;
+      if(b.y<8||b.y>H-8)b.vy*=-1;
+      if(b.vx<0&&b.x<30&&b.x>14&&Math.abs(b.y-py)<45){b.vx=Math.abs(b.vx)*1.05;b.vy=(b.y-py)/8}
+      if(b.vx>0&&b.x>W-30&&b.x<W-14&&Math.abs(b.y-cy)<45){b.vx=-Math.abs(b.vx)*1.05;b.vy=(b.y-cy)/8}
+      if(b.x<0){cs++;serve(1)}if(b.x>W){ps++;serve(-1)}
+      if(ps>=5||cs>=5)over=true;
+    },
+    draw(){
+      R(0,0,W,H,'#0b0b0d');for(let i=0;i<H;i+=24)R(W/2-2,i,4,12,'#333');
+      R(14,py-40,10,80,'#60a5fa');R(W-24,cy-40,10,80,'#f87171');R(b.x-7,b.y-7,14,14,'#fff');
+      T(ps,W/2-50,50,32);T(cs,W/2+50,50,32);
+      if(over)overlay(ps>=5?'¡Ganaste!':'Perdiste');
+    },
+    move(x,y){py=y},
+    key(){},over:()=>over,score:()=>`Tú ${ps} - ${cs} CPU`
+  };
+}
+
+/* ---------- 3. BREAKOUT ---------- */
+function Breakout(){
+  let px,b,br,sc,lives,over;
+  return{
+    info:'Breakout · Mouse o ← →',
+    reset(){px=200;b={x:240,y:320,vx:3,vy:-4};br=[];
+      for(let r=0;r<6;r++)for(let c=0;c<10;c++)br.push({x:c*48+2,y:r*22+40,on:1,h:r*50});
+      sc=0;lives=3;over=false},
+    update(dt){
+      if(over)return;const f=dt*60;
+      if(keys.arrowleft||keys.a)px-=7*f;if(keys.arrowright||keys.d)px+=7*f;
+      px=Math.max(0,Math.min(W-90,px));
+      b.x+=b.vx*f;b.y+=b.vy*f;
+      if(b.x<7||b.x>W-7)b.vx*=-1;if(b.y<7)b.vy*=-1;
+      if(b.vy>0&&b.y>H-30&&b.y<H-14&&b.x>px&&b.x<px+90){b.vy*=-1;b.vx=(b.x-px-45)/10}
+      for(const k of br)if(k.on&&b.x>k.x&&b.x<k.x+44&&b.y>k.y&&b.y<k.y+18){k.on=0;b.vy*=-1;sc+=10;break}
+      if(b.y>H){lives--;b={x:240,y:320,vx:3,vy:-4};if(lives<=0)over=true}
+      if(br.every(k=>!k.on))over='win';
+    },
+    draw(){
+      R(0,0,W,H,'#0b0b0d');
+      br.forEach(k=>k.on&&R(k.x,k.y,44,18,`hsl(${k.h},75%,55%)`));
+      R(px,H-24,90,10,'#60a5fa');ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b.x,b.y,7,0,7);ctx.fill();
+      if(over)overlay(over=='win'?'¡Ganaste!':'Fin del juego');
+    },
+    move(x){px=x-45},
+    key(){},over:()=>over,score:()=>`Puntos: ${sc} · Vidas: ${lives}`
+  };
+}
+
+/* ---------- 4. FLAPPY ---------- */
+function Flappy(){
+  let y,vy,p,t,sc,over;
+  const flap=()=>{if(!over)vy=-7};
+  return{
+    info:'Flappy · Espacio, flecha ↑ o clic para saltar',
+    reset(){y=240;vy=0;p=[];t=0;sc=0;over=false},
+    update(dt){
+      if(over)return;const f=dt*60;t+=dt;
+      if(t>1.5){t=0;p.push({x:W,gap:100+Math.random()*(H-300),ok:0})}
+      vy+=.4*f;y+=vy*f;
+      p.forEach(o=>{o.x-=3*f;if(!o.ok&&o.x<60){o.ok=1;sc++}
+        if(o.x<90&&o.x>20&&(y<o.gap||y>o.gap+130))over=true});
+      p=p.filter(o=>o.x>-60);
+      if(y<0||y>H)over=true;
+    },
+    draw(){
+      R(0,0,W,H,'#0b1a2b');
+      p.forEach(o=>{R(o.x,0,50,o.gap,'#22c55e');R(o.x,o.gap+130,50,H,'#22c55e')});
+      ctx.fillStyle='#facc15';ctx.beginPath();ctx.arc(60,y,14,0,7);ctx.fill();
+      if(over)overlay('Fin del juego');
+    },
+    key(k){if(k==' '||k=='arrowup'||k=='w')flap()},
+    tap:flap,over:()=>over,score:()=>'Puntos: '+sc
+  };
+}
+
+/* ---------- 5. TRES EN RAYA ---------- */
+function TicTacToe(){
+  let bd,over,msg,wins=0;
+  const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  const win=p=>L.some(l=>l.every(i=>bd[i]==p));
+  const check=()=>{
+    if(win('X')){over=true;msg='¡Ganaste!';wins++}
+    else if(win('O')){over=true;msg='Gana la CPU'}
+    else if(bd.every(Boolean)){over=true;msg='Empate'}
+  };
+  const cpu=()=>{
+    const free=bd.map((v,i)=>v?-1:i).filter(i=>i>=0);
+    for(const p of['O','X'])for(const i of free){bd[i]=p;const w=win(p);bd[i]='';if(w){bd[i]='O';return}}
+    bd[bd[4]?free[Math.random()*free.length|0]:4]='O';
+  };
+  return{
+    info:'Tres en raya · Haz clic en una casilla (tú eres X)',
+    reset(){bd=Array(9).fill('');over=false;msg=''},
+    update(){},
+    draw(){
+      R(0,0,W,H,'#0b0b0d');
+      for(let i=1;i<3;i++){R(i*160-2,20,4,H-40,'#444');R(20,i*160-2,W-40,4,'#444')}
+      bd.forEach((v,i)=>v&&T(v,(i%3)*160+80,((i/3|0)*160)+105,80,v=='X'?'#60a5fa':'#f87171'));
+      if(over)overlay(msg);
+    },
+    tap(x,y){
+      const i=(y/160|0)*3+(x/160|0);
+      if(bd[i]||over)return;bd[i]='X';check();
+      if(!over){cpu();check()}
+    },
+    key(){},over:()=>over,score:()=>'Victorias: '+wins
+  };
+}
+
+/* ---------- LAUNCHER ---------- */
+const LIB=[
+  {n:'Snake',e:'🐍',d:'Arcade clásico',f:Snake},
+  {n:'Pong',e:'🏓',d:'Contra la CPU',f:Pong},
+  {n:'Breakout',e:'🧱',d:'Rompe ladrillos',f:Breakout},
+  {n:'Flappy',e:'🐤',d:'Esquiva tuberías',f:Flappy},
+  {n:'Tres en raya',e:'❌',d:'Estrategia',f:TicTacToe}
+];
+const keys={};let g=null,last=0,raf;
+const menu=document.getElementById('menu');
+LIB.forEach((o,i)=>{
+  const b=document.createElement('button');b.className='card';
+  b.innerHTML=`<span>${o.e}</span><div>${o.n}<small>${o.d}</small></div>`;
+  b.onclick=()=>launch(i);menu.appendChild(b);
+});
+function launch(i){
+  document.querySelectorAll('.card').forEach((c,j)=>c.classList.toggle('active',i==j));
+  g=LIB[i].f();g.reset();document.getElementById('info').textContent=g.info;
+  cancelAnimationFrame(raf);last=performance.now();raf=requestAnimationFrame(loop);
+}
+function loop(now){
+  const dt=Math.min((now-last)/1000,.05);last=now;
+  g.update(dt);g.draw();
+  document.getElementById('score').textContent=g.score();
+  raf=requestAnimationFrame(loop);
+}
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();keys[k]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
+  if(!g)return;
+  if(k=='enter'&&g.over())g.reset();else g.key(k);
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]};
+cv.addEventListener('mousedown',e=>{
+  if(!g)return;if(g.over()){g.reset();return}
+  const[x,y]=pos(e);g.tap&&g.tap(x,y);
+});
+cv.addEventListener('mousemove',e=>{if(g&&g.move){const[x,y]=pos(e);g.move(x,y)}});
+launch(0);
+</script>
+</body>
+</html>s
